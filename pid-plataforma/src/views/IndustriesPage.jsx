@@ -1,4 +1,3 @@
-import React from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { MapaBrasil } from "../components/BaseComponents";
 import { TIPOS, ESTADOS, TIPO_COR } from "../models/data";

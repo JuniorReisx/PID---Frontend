@@ -5,6 +5,7 @@ import { PaginaInfraestrutura } from "./views/InfrastructurePage";
 import { PaginaIndustrias } from "./views/IndustriesPage";
 import { PaginaPID } from "./views/PagePID";
 import { PaginaSaibaMais } from "./views/PageLearnMore";
+import ChatBot from "./components/ChatBot"; // 👈 adiciona
 
 export default function App() {
   const { pagina, setPagina } = useNavController();
@@ -21,6 +22,7 @@ export default function App() {
     <div className="font-sans min-h-screen bg-[#F7F8FA]">
       <Navbar pagina={pagina} setPagina={setPagina} />
       {PAGINAS[pagina]}
+      <ChatBot /> {/* 👈 adiciona aqui, fora do conteúdo da página */}
     </div>
   );
 }
