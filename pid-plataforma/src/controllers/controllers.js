@@ -1,5 +1,7 @@
 // ── CONTROLLERS ────────────────────────────────────────────────
 
+// ── CONTROLLERS ────────────────────────────────────────────────
+
 import { useState, useMemo } from "react";
 import {
   INDUSTRIAS,
@@ -11,12 +13,10 @@ import {
   PERSONA_DEFAULT,
 } from "../models/data";
 
-// Retorna a config da persona ativa (ou o default)
 function getConfig(persona) {
   return persona ? PERSONA_CONFIG[persona] : PERSONA_DEFAULT;
 }
 
-// Inicializa camadas aplicando quais devem ficar ativas para a persona
 function initCamadas(base, idsAtivos) {
   return base.map((c) => ({ ...c, ativa: idsAtivos.includes(c.id) }));
 }
@@ -27,7 +27,7 @@ export function useNavController() {
   return { pagina, setPagina };
 }
 
-// ── Controller: Infraestrutura ────────────────────────────────
+// ── Controller: Infraestrutura ─────────────────────────────────
 export function useInfraestruturaController(persona) {
   const cfg = getConfig(persona);
 
@@ -37,7 +37,6 @@ export function useInfraestruturaController(persona) {
   const [estado, setEstado] = useState("Todos");
   const [aberta, setAberta] = useState(true);
 
-  // Quando a persona mudar, reaplicar as camadas padrão dela
   const [personaAnterior, setPersonaAnterior] = useState(persona);
   if (persona !== personaAnterior) {
     setPersonaAnterior(persona);
@@ -49,20 +48,35 @@ export function useInfraestruturaController(persona) {
 
   const ativas      = camadas.filter((c) => c.ativa);
   const categorias  = [...new Set(CAMADAS_INFRA_INIT.map((c) => c.categoria))];
-  const coresAtivas = new Set(ativas.map((c) => c.cor));
-  const dots        = DOTS_BASE.filter((d) => coresAtivas.has(d.c) || d.c === "#E84C1F");
-  const totalPontos = ativas.reduce((s, c) => s + c.qtd, 0);
+  const coresAtivas = new Set(ativas.filter((c) => c.id !== "curtailment").map((c) => c.cor));
+
+  // Filtra DOTS_BASE pelas cores das camadas ativas
+  // Se nenhuma camada ativa além de curtailment → mostra todos os dots
+  const dots = coresAtivas.size > 0
+    ? DOTS_BASE.filter((d) => coresAtivas.has(d.c))
+    : DOTS_BASE;
+
+  // Filtra por estado se selecionado
+  const dotsFiltrados = estado !== "Todos"
+    ? dots.filter((d) => d.label && d.label.includes(estado))
+    : dots;
+
+  const totalPontos = ativas.reduce((s, c) => s + (c.qtd || 0), 0);
+  const showCurtailment = camadas.find((c) => c.id === "curtailment")?.ativa ?? false;
 
   return {
     camadas, estado, aberta,
     setEstado, setAberta,
     toggleCamada,
-    ativas, categorias, dots, totalPontos,
+    ativas, categorias,
+    dots: dotsFiltrados,
+    totalPontos,
+    showCurtailment,
     config: cfg,
   };
 }
 
-// ── Controller: Indústrias ────────────────────────────────────
+// ── Controller: Indústrias ─────────────────────────────────────
 export function useIndustriasController(persona) {
   const cfg = getConfig(persona);
 
@@ -71,7 +85,6 @@ export function useIndustriasController(persona) {
   const [busca,  setBusca]  = useState("");
   const [ordem,  setOrdem]  = useState(cfg.industriaOrdemPadrao);
 
-  // Quando persona mudar, resetar tipo e ordem para os padrões do novo perfil
   const [personaAnterior, setPersonaAnterior] = useState(persona);
   if (persona !== personaAnterior) {
     const novaCfg = getConfig(persona);
@@ -104,16 +117,17 @@ export function useIndustriasController(persona) {
     }))
     .sort((a, b) => b.valor - a.valor);
 
+  // ✅ dotsIndustria com lat/lng reais das plantas industriais
   const dotsIndustria = useMemo(() =>
-    filtradas.slice(0, 18).map((ind, i) => ({
-      x: 28 + (i % 6) * 10 + Math.sin(i * 1.3) * 2,
-      y: 18 + Math.floor(i / 6) * 14 + Math.cos(i * 1.3) * 2,
-      c: TIPO_COR[ind.tipo] || "#E84C1F",
-      r: 5 + ind.consumo / 120,
+    filtradas.map((ind) => ({
+      lat:   ind.lat,
+      lng:   ind.lng,
+      c:     TIPO_COR[ind.tipo] || "#94A3B8",
+      r:     4 + Math.sqrt(ind.consumo / 600),  // raio proporcional ao consumo
+      label: `${ind.nome}\n${ind.cidade}, ${ind.estado}\n${ind.consumo.toLocaleString("pt-BR")} MWh/ano · ${ind.tipo}`,
     })),
   [filtradas]);
 
-  // KPIs adaptados à persona
   const kpiPrincipal = {
     label: cfg.kpiPrincipalLabel,
     valor: cfg.kpiPrincipalValor(total),
@@ -144,7 +158,6 @@ export function usePIDController(persona) {
   const [busca,        setBusca]        = useState("");
   const [aba,          setAba]          = useState("camadas");
 
-  // Quando persona mudar, reaplicar camadas padrão
   const [personaAnterior, setPersonaAnterior] = useState(persona);
   if (persona !== personaAnterior) {
     setPersonaAnterior(persona);
